@@ -1,0 +1,33 @@
+{
+  "name": "cadence",
+  "version": "0.1.0",
+  "description": "Comprehensive skill for building, debugging, and operating Cadence workflows, activities, and workers across the Go, Java, and Python SDKs.",
+  "author": {
+    "name": "Cadence",
+    "url": "https://cadenceworkflow.io/"
+  },
+  "homepage": "https://cadenceworkflow.io/",
+  "repository": "https://github.com/cadence-workflow/codex-plugin",
+  "license": "Apache-2.0",
+  "keywords": [
+    "cadence",
+    "workflow",
+    "durable-execution",
+    "orchestration",
+    "go",
+    "java",
+    "python",
+    "microservices",
+    "distributed-systems"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Cadence",
+    "shortDescription": "Build and operate Cadence workflows",
+    "longDescription": "Guidance for building, debugging, and operating Cadence workflows, activities, and workers across the Go, Java, and Python SDKs.",
+    "developerName": "Cadence",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://cadenceworkflow.io/"
+  }
+}
