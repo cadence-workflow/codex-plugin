@@ -1,0 +1,84 @@
+name: Sync skills from ai-skills
+
+# Pulls the canonical skill content from cadence-workflow/ai-skills into this
+# plugin and opens a PR with the changes. A maintainer reviews the diff, bumps
+# the plugin version in .codex-plugin/plugin.json, and merges.
+on:
+  # Manual run. Optionally pin a specific ref (tag/branch/sha) to sync.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "ai-skills ref to sync (tag/branch/sha). Blank = latest release."
+        required: false
+        default: ""
+  # Fired by ai-skills when a new release is published (see ai-skills'
+  # notify-plugins workflow). client_payload.tag carries the released tag.
+  repository_dispatch:
+    types: [skills-released]
+
+concurrency:
+  group: sync-skills
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout plugin repo
+        uses: actions/checkout@v4
+
+      - name: Determine source ref
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "ref=${{ github.event.client_payload.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run sync script
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REPO: cadence-workflow/ai-skills
+          SKILLS: cadence-developer
+        run: |
+          ./scripts/sync-skills.sh "${{ steps.ref.outputs.ref }}"
+
+      - name: Read synced source metadata
+        id: meta
+        run: |
+          ref="$(grep -m1 '"ref"' .codex-plugin/skill-source.json | sed -E 's/.*: *"([^"]+)".*/\1/')"
+          commit="$(grep -m1 '"commit"' .codex-plugin/skill-source.json | sed -E 's/.*: *"([^"]+)".*/\1/')"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "short_commit=${commit:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: sync/skills-${{ steps.meta.outputs.ref }}
+          base: main
+          commit-message: "chore(skills): sync from ai-skills@${{ steps.meta.outputs.ref }}"
+          title: "chore(skills): sync from ai-skills@${{ steps.meta.outputs.ref }}"
+          body: |
+            Automated sync of vendored skills from
+            [`cadence-workflow/ai-skills`](https://github.com/cadence-workflow/ai-skills).
+
+            - **Source ref:** `${{ steps.meta.outputs.ref }}`
+            - **Source commit:** [`${{ steps.meta.outputs.short_commit }}`](https://github.com/cadence-workflow/ai-skills/commit/${{ steps.meta.outputs.commit }})
+            - **Triggered by:** `${{ github.event_name }}`
+
+            ### Before merging
+            - [ ] Review the skill diff for correctness.
+            - [ ] Bump `version` in `.codex-plugin/plugin.json` if appropriate.
+
+            > Skill content is maintained upstream in `ai-skills`. Do not hand-edit
+            > files under `skills/` in this repo; make changes upstream instead.
+          labels: |
+            skills-sync
+            automated
+          delete-branch: true
